@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y \
     fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the latest pre-release/nightly yt-dlp to handle platform blocks
-RUN pip3 install --no-cache-dir -U --pre "yt-dlp[default]"
+# Install yt-dlp with the system override flag for Docker containers
+RUN pip3 install --no-cache-dir --break-system-packages -U --pre "yt-dlp[default]"
 
 WORKDIR /app
 
