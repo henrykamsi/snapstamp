@@ -32,26 +32,31 @@ app.post('/api/download', (req, res) => {
     const rawVideoPath = path.join(tempDir, `${id}_raw.mp4`);
     const finalVideoPath = path.join(tempDir, `${id}_watermarked.mp4`);
 
-    // yt-dlp command using standard user-agent to bypass bot checks on TikTok/YouTube
-    const dlCommand = `yt-dlp --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -f "b[ext=mp4]/best" -o "${rawVideoPath}" "${videoUrl}"`;
+    // Using best compatibility flags to ensure the raw video is always strictly an MP4
+    const dlCommand = `yt-dlp --no-check-certificate --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "${rawVideoPath}" "${videoUrl}"`;
     
-    exec(dlCommand, (dlErr) => {
+    console.log(`Executing download for: ${videoUrl}`);
+
+    exec(dlCommand, (dlErr, stdout, stderr) => {
         if (dlErr) {
-            console.error('Download error:', dlErr);
-            return res.status(500).json({ error: 'Failed to download video. Check the link and try again.' });
+            console.error('--- YT-DLP DOWNLOAD ERROR ---');
+            console.error('Stderr:', stderr);
+            return res.status(500).json({ error: `Failed to download: ${stderr || dlErr.message}` });
         }
 
-        // Explicitly point to the installed DejaVu font so ffmpeg drawtext never fails
+        // Fixed ffmpeg filter syntax (drawtext=) and added -y flag to avoid background overwrite prompts
         const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
         const watermarkText = "Powered by HGT";
-        const wmCommand = `ffmpeg -i "${rawVideoPath}" -vf "drawtext=fontfile='${fontPath}':text='${watermarkText}':x=15:y=H-th-15:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.6" -codec:a copy "${finalVideoPath}"`;
+        const wmCommand = `ffmpeg -y -i "${rawVideoPath}" -vf "drawtext=fontfile='${fontPath}':text='${watermarkText}':x=15:y=H-th-15:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.6" -codec:a copy "${finalVideoPath}"`;
         
-        exec(wmCommand, (wmErr) => {
+        exec(wmCommand, (wmErr, wmStdout, wmStderr) => {
+            // Remove the raw downloaded video
             if (fs.existsSync(rawVideoPath)) fs.unlinkSync(rawVideoPath);
 
             if (wmErr) {
-                console.error('Watermark error:', wmErr);
-                return res.status(500).json({ error: 'Error processing video watermarking.' });
+                console.error('--- FFMPEG WATERMARK ERROR ---');
+                console.error('Stderr:', wmStderr);
+                return res.status(500).json({ error: `Watermarking failed: ${wmStderr || wmErr.message}` });
             }
 
             res.json({ 
