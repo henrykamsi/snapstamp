@@ -32,8 +32,8 @@ app.post('/api/download', (req, res) => {
     const rawVideoPath = path.join(tempDir, `${id}_raw.mp4`);
     const finalVideoPath = path.join(tempDir, `${id}_watermarked.mp4`);
 
-    // Added JS runtime and mobile client spoofing to bypass YouTube bot checks
-    const dlCommand = `yt-dlp --no-check-certificate --js-runtimes nodejs --extractor-args "youtube:player_client=android,ios" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "${rawVideoPath}" "${videoUrl}"`;
+    // yt-dlp command upgraded with curl-impersonate and JS runtime execution flags
+    const dlCommand = `yt-dlp --no-check-certificate --impersonate chrome -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "${rawVideoPath}" "${videoUrl}"`;
     
     console.log(`Executing download for: ${videoUrl}`);
 
