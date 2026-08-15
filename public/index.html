@@ -3,60 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapStamp - Universal Video Watermarker</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 100%; max-width: 450px; text-align: center; }
-        h1 { margin-bottom: 10px; color: #38bdf8; }
-        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; margin-bottom: 15px; box-sizing: border-box; }
-        button { background: #0284c7; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: #0369a1; }
-        #status { margin-top: 15px; font-size: 14px; color: #facc15; }
-    </style>
+    <title>SnapStamp - HGT Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body>
-    <div class="card">
-        <h1>SnapStamp</h1>
-        <p>Paste any video link below. It will be watermarked instantly and downloaded anonymously.</p>
-        <input type="text" id="urlInput" placeholder="Paste YouTube, TikTok, Facebook link...">
-        <button onclick="processVideo()">Download Watermarked Video</button>
-        <div id="status"></div>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="max-w-xl w-full bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700 text-center">
+        <h1 class="text-4xl font-bold mb-2 text-blue-500"><i class="fa-solid fa-video"></i> SnapStamp</h1>
+        <p class="text-gray-400 mb-8">Download and watermark videos, Powered by HGT</p>
+
+        <div class="mb-6">
+            <input type="url" id="videoUrl" placeholder="Paste your video link here..." 
+                class="w-full p-4 rounded-lg bg-gray-700 border border-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-400">
+        </div>
+
+        <button id="processBtn" onclick="processVideo()" 
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-2">
+            <span>Process Video</span>
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+        </button>
+
+        <!-- Loading Animation State -->
+        <div id="loadingState" class="hidden mt-8 flex-col items-center">
+            <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p id="loadingText" class="text-blue-400 font-medium">Fetching video stream...</p>
+            <p class="text-sm text-gray-500 mt-2">Please wait, processing time depends on video length.</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="hidden mt-6 p-4 bg-red-900/50 border border-red-500 text-red-200 rounded-lg">
+            <p id="errorMsg"></p>
+        </div>
+
+        <!-- Result State with Download Button -->
+        <div id="resultState" class="hidden mt-8 p-6 bg-gray-700 rounded-xl border border-gray-600 shadow-inner">
+            <div class="w-full bg-gray-900 rounded-lg aspect-video flex items-center justify-center mb-4 overflow-hidden border border-gray-800">
+                <i class="fa-solid fa-circle-check text-6xl text-green-500"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-1">Processing Complete!</h3>
+            <p class="text-gray-400 text-sm mb-6">Your HGT watermark has been applied.</p>
+            <a id="downloadBtn" href="#" class="w-full flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg transition-all shadow-lg">
+                <i class="fa-solid fa-download mr-2"></i> Download Video
+            </a>
+        </div>
     </div>
 
     <script>
         async function processVideo() {
-            const url = document.getElementById('urlInput').value.trim();
-            const status = document.getElementById('status');
-            if (!url) { status.innerText = "Please paste a valid link!"; return; }
+            const urlInput = document.getElementById('videoUrl').value.trim();
+            const processBtn = document.getElementById('processBtn');
+            const loadingState = document.getElementById('loadingState');
+            const resultState = document.getElementById('resultState');
+            const errorState = document.getElementById('errorState');
+            const errorMsg = document.getElementById('errorMsg');
+            const loadingText = document.getElementById('loadingText');
+            
+            if (!urlInput) {
+                showError("Please enter a valid URL.");
+                return;
+            }
 
-            status.innerText = "Processing & Watermarking... Please wait.";
+            // Reset UI for new request
+            errorState.classList.add('hidden');
+            resultState.classList.add('hidden');
+            processBtn.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            
+            // Cycle loading messages to show activity
+            const statuses = ["Downloading video data...", "Applying HGT watermark...", "Finalizing your file..."];
+            let step = 0;
+            const statusInterval = setInterval(() => {
+                step = (step + 1) % statuses.length;
+                loadingText.innerText = statuses[step];
+            }, 4000);
 
             try {
                 const response = await fetch('/api/download', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
+                    body: JSON.stringify({ url: urlInput })
                 });
 
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.error || "Failed to process download.");
-                }
+                const data = await response.json();
+                clearInterval(statusInterval);
 
-                const blob = await response.blob();
-                const downloadUrl = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = "snapstamp-video.mp4";
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
+                if (!response.ok) throw new Error(data.error || "Failed to process video");
 
-                status.innerText = "Download complete! Server storage cleared.";
-            } catch (err) {
-                status.innerText = err.message;
+                // Switch to Result UI
+                loadingState.classList.add('hidden');
+                resultState.classList.remove('hidden');
+                
+                // Attach file endpoint to the massive download button
+                const downloadBtn = document.getElementById('downloadBtn');
+                downloadBtn.href = `/api/file/${data.filename}`;
+                
+            } catch (error) {
+                clearInterval(statusInterval);
+                showError(error.message);
             }
+        }
+
+        function showError(msg) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('processBtn').classList.remove('hidden');
+            document.getElementById('errorState').classList.remove('hidden');
+            document.getElementById('errorMsg').innerText = msg;
         }
     </script>
 </body>
