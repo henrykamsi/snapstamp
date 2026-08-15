@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y \
     fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp with full default, js-runtime support (ejs), and curl-cffi browser impersonation
-RUN pip3 install --no-cache-dir --break-system-packages -U --pre "yt-dlp[default,curl-cffi]"
+# Install yt-dlp using standard setup without forcing broken curl-cffi impersonation
+RUN pip3 install --no-cache-dir --break-system-packages -U --pre "yt-dlp[default]"
 
 WORKDIR /app
 

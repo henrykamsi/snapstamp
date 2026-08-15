@@ -32,8 +32,8 @@ app.post('/api/download', (req, res) => {
     const rawVideoPath = path.join(tempDir, `${id}_raw.mp4`);
     const finalVideoPath = path.join(tempDir, `${id}_watermarked.mp4`);
 
-    // yt-dlp command upgraded with curl-impersonate and JS runtime execution flags
-    const dlCommand = `yt-dlp --no-check-certificate --impersonate chrome -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "${rawVideoPath}" "${videoUrl}"`;
+    // Clean standard downloader command using a modern browser user agent without problematic flags
+    const dlCommand = `yt-dlp --no-check-certificate --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" -f "b[ext=mp4]/best" --merge-output-format mp4 -o "${rawVideoPath}" "${videoUrl}"`;
     
     console.log(`Executing download for: ${videoUrl}`);
 
