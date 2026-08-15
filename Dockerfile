@@ -1,10 +1,16 @@
-FROM node:18-alpine
+FROM node:18-slim
 
-# Install Python, FFmpeg, and yt-dlp dependencies
-RUN apk add --no-cache python3 py3-pip ffmpeg curl
+# Install Python, FFmpeg, curl, and fonts for ffmpeg text rendering
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    ffmpeg \
+    curl \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install latest yt-dlp globally
-RUN pip3 install --no-cache-dir --break-system-packages --upgrade yt-dlp
+# Install the latest pre-release/nightly yt-dlp to handle platform blocks
+RUN pip3 install --no-cache-dir -U --pre "yt-dlp[default]"
 
 WORKDIR /app
 

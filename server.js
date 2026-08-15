@@ -8,14 +8,12 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// FIX: Enable trust proxy for Render load balancers
 app.set('trust proxy', 1);
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Rate Limiter setup
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50,
@@ -23,11 +21,9 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Ensure temp directory exists
 const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
-// Download and watermark endpoint
 app.post('/api/download', (req, res) => {
     const videoUrl = req.body.url;
     if (!videoUrl) return res.status(400).json({ error: 'URL is required' });
@@ -36,8 +32,8 @@ app.post('/api/download', (req, res) => {
     const rawVideoPath = path.join(tempDir, `${id}_raw.mp4`);
     const finalVideoPath = path.join(tempDir, `${id}_watermarked.mp4`);
 
-    // 1. Download video using yt-dlp
-    const dlCommand = `yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -o "${rawVideoPath}" "${videoUrl}"`;
+    // yt-dlp command using standard user-agent to bypass bot checks on TikTok/YouTube
+    const dlCommand = `yt-dlp --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -f "b[ext=mp4]/best" -o "${rawVideoPath}" "${videoUrl}"`;
     
     exec(dlCommand, (dlErr) => {
         if (dlErr) {
@@ -45,13 +41,12 @@ app.post('/api/download', (req, res) => {
             return res.status(500).json({ error: 'Failed to download video. Check the link and try again.' });
         }
 
-        // 2. Add HGT watermark using ffmpeg
-        // Note: If you have a custom HGT image watermark, you can update this ffmpeg command!
+        // Explicitly point to the installed DejaVu font so ffmpeg drawtext never fails
+        const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
         const watermarkText = "Powered by HGT";
-        const wmCommand = `ffmpeg -i "${rawVideoPath}" -vf "drawtext=text='${watermarkText}':x=10:y=H-th-10:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.5" -codec:a copy "${finalVideoPath}"`;
+        const wmCommand = `ffmpeg -i "${rawVideoPath}" -vf "drawtext=fontfile='${fontPath}':text='${watermarkText}':x=15:y=H-th-15:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.6" -codec:a copy "${finalVideoPath}"`;
         
         exec(wmCommand, (wmErr) => {
-            // Clean up raw file to save server space
             if (fs.existsSync(rawVideoPath)) fs.unlinkSync(rawVideoPath);
 
             if (wmErr) {
@@ -59,7 +54,6 @@ app.post('/api/download', (req, res) => {
                 return res.status(500).json({ error: 'Error processing video watermarking.' });
             }
 
-            // Return success and the file ID to the frontend
             res.json({ 
                 success: true, 
                 filename: `${id}_watermarked.mp4`
@@ -68,12 +62,10 @@ app.post('/api/download', (req, res) => {
     });
 });
 
-// Endpoint to fetch the processed file
 app.get('/api/file/:filename', (req, res) => {
     const file = path.join(tempDir, req.params.filename);
     if (fs.existsSync(file)) {
         res.download(file, 'SnapStamp_HGT.mp4', (err) => {
-            // Delete file after successful download to keep Render clean
             if (fs.existsSync(file)) fs.unlinkSync(file);
         });
     } else {
