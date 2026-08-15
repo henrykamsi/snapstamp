@@ -6,29 +6,56 @@
     <title>SnapStamp - HGT Downloader</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom Linear Progress Bar Animation */
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background-color: #374151; /* Tailwind gray-700 */
+            border-radius: 9999px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar {
+            width: 50%;
+            height: 100%;
+            background-color: #3b82f6; /* Tailwind blue-500 */
+            border-radius: 9999px;
+            position: absolute;
+            animation: loading 1.5s infinite ease-in-out;
+        }
+        @keyframes loading {
+            0% { left: -50%; width: 50%; }
+            50% { left: 25%; width: 75%; }
+            100% { left: 100%; width: 50%; }
+        }
+    </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
 
-    <div class="max-w-xl w-full bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700 text-center">
+    <!-- Made the container wider: max-w-3xl instead of max-w-xl -->
+    <div class="max-w-3xl w-full bg-gray-800 p-8 md:p-10 rounded-2xl shadow-2xl border border-gray-700 text-center">
         <h1 class="text-4xl font-bold mb-2 text-blue-500"><i class="fa-solid fa-video"></i> SnapStamp</h1>
         <p class="text-gray-400 mb-8">Download and watermark videos, Powered by HGT</p>
 
         <div class="mb-6">
-            <input type="url" id="videoUrl" placeholder="Paste your video link here..." 
-                class="w-full p-4 rounded-lg bg-gray-700 border border-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-400">
+            <input type="url" id="videoUrl" placeholder="Paste your TikTok or YouTube link here..." 
+                class="w-full p-4 rounded-lg bg-gray-700 border border-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-gray-400 text-lg">
         </div>
 
         <button id="processBtn" onclick="processVideo()" 
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-2">
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-2 text-lg">
             <span>Process Video</span>
             <i class="fa-solid fa-wand-magic-sparkles"></i>
         </button>
 
-        <!-- Loading Animation State -->
+        <!-- New Linear Progress Bar Loading State -->
         <div id="loadingState" class="hidden mt-8 flex-col items-center">
-            <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p id="loadingText" class="text-blue-400 font-medium">Fetching video stream...</p>
-            <p class="text-sm text-gray-500 mt-2">Please wait, processing time depends on video length.</p>
+            <div class="progress-bar-container mb-4">
+                <div class="progress-bar"></div>
+            </div>
+            <p id="loadingText" class="text-blue-400 font-medium text-lg">Initializing connection...</p>
+            <p class="text-sm text-gray-500 mt-2">Please wait, processing time depends on video length and platform.</p>
         </div>
 
         <!-- Error State -->
@@ -36,14 +63,20 @@
             <p id="errorMsg"></p>
         </div>
 
-        <!-- Result State with Download Button -->
+        <!-- New Result State with Video Player and Download Button -->
         <div id="resultState" class="hidden mt-8 p-6 bg-gray-700 rounded-xl border border-gray-600 shadow-inner">
-            <div class="w-full bg-gray-900 rounded-lg aspect-video flex items-center justify-center mb-4 overflow-hidden border border-gray-800">
-                <i class="fa-solid fa-circle-check text-6xl text-green-500"></i>
+            <h3 class="text-2xl font-bold mb-2 text-green-400">Processing Complete!</h3>
+            <p class="text-gray-300 mb-6">Your HGT watermark has been applied successfully.</p>
+            
+            <!-- Video Player Container -->
+            <div class="w-full max-w-lg mx-auto bg-black rounded-lg overflow-hidden border-2 border-gray-800 shadow-lg mb-6">
+                <video id="videoPlayer" class="w-full h-auto max-h-96" controls controlsList="nodownload">
+                    Your browser does not support the video tag.
+                </video>
             </div>
-            <h3 class="text-xl font-bold mb-1">Processing Complete!</h3>
-            <p class="text-gray-400 text-sm mb-6">Your HGT watermark has been applied.</p>
-            <a id="downloadBtn" href="#" class="w-full flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg transition-all shadow-lg">
+
+            <!-- Download Button -->
+            <a id="downloadBtn" href="#" class="w-full max-w-lg mx-auto flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg transition-all shadow-lg text-lg">
                 <i class="fa-solid fa-download mr-2"></i> Download Video
             </a>
         </div>
@@ -64,14 +97,12 @@
                 return;
             }
 
-            // Reset UI for new request
             errorState.classList.add('hidden');
             resultState.classList.add('hidden');
             processBtn.classList.add('hidden');
             loadingState.classList.remove('hidden');
             
-            // Cycle loading messages to show activity
-            const statuses = ["Downloading video data...", "Applying HGT watermark...", "Finalizing your file..."];
+            const statuses = ["Extracting video stream...", "Applying HGT watermark...", "Finalizing your file..."];
             let step = 0;
             const statusInterval = setInterval(() => {
                 step = (step + 1) % statuses.length;
@@ -90,13 +121,18 @@
 
                 if (!response.ok) throw new Error(data.error || "Failed to process video");
 
-                // Switch to Result UI
+                // Update Video Player and Download Button
+                const videoPlayer = document.getElementById('videoPlayer');
+                const downloadBtn = document.getElementById('downloadBtn');
+                
+                // Set the video player source to the stream endpoint
+                videoPlayer.src = `/api/stream/${data.filename}`;
+                
+                // Set the download button link to the file endpoint
+                downloadBtn.href = `/api/file/${data.filename}`;
+                
                 loadingState.classList.add('hidden');
                 resultState.classList.remove('hidden');
-                
-                // Attach file endpoint to the massive download button
-                const downloadBtn = document.getElementById('downloadBtn');
-                downloadBtn.href = `/api/file/${data.filename}`;
                 
             } catch (error) {
                 clearInterval(statusInterval);

@@ -32,8 +32,8 @@ app.post('/api/download', (req, res) => {
     const rawVideoPath = path.join(tempDir, `${id}_raw.mp4`);
     const finalVideoPath = path.join(tempDir, `${id}_watermarked.mp4`);
 
-    // Clean standard downloader command using a modern browser user agent without problematic flags
-    const dlCommand = `yt-dlp --no-check-certificate --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" -f "b[ext=mp4]/best" --merge-output-format mp4 -o "${rawVideoPath}" "${videoUrl}"`;
+    // Using the web_safari client spoof for YouTube and a clean User-Agent for TikTok
+    const dlCommand = `yt-dlp --no-check-certificate --extractor-args "youtube:player_client=web_safari" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" -f "b[ext=mp4]/best" --merge-output-format mp4 -o "${rawVideoPath}" "${videoUrl}"`;
     
     console.log(`Executing download for: ${videoUrl}`);
 
@@ -41,7 +41,7 @@ app.post('/api/download', (req, res) => {
         if (dlErr) {
             console.error('--- YT-DLP DOWNLOAD ERROR ---');
             console.error('Stderr:', stderr);
-            return res.status(500).json({ error: `Failed to download: ${stderr || dlErr.message}` });
+            return res.status(500).json({ error: `Download failed. The platform might be blocking the request: ${stderr || dlErr.message}` });
         }
 
         const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
@@ -65,6 +65,17 @@ app.post('/api/download', (req, res) => {
     });
 });
 
+// Endpoint to stream the video to the frontend player
+app.get('/api/stream/:filename', (req, res) => {
+    const file = path.join(tempDir, req.params.filename);
+    if (fs.existsSync(file)) {
+        res.sendFile(file);
+    } else {
+        res.status(404).send('File not found');
+    }
+});
+
+// Endpoint for the actual download button
 app.get('/api/file/:filename', (req, res) => {
     const file = path.join(tempDir, req.params.filename);
     if (fs.existsSync(file)) {
