@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnapStamp - Universal Video Watermarker</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 100%; max-width: 450px; text-align: center; }
+        h1 { margin-bottom: 10px; color: #38bdf8; }
+        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; margin-bottom: 15px; box-sizing: border-box; }
+        button { background: #0284c7; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #0369a1; }
+        #status { margin-top: 15px; font-size: 14px; color: #facc15; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>SnapStamp</h1>
+        <p>Paste any video link below. It will be watermarked instantly and downloaded anonymously.</p>
+        <input type="text" id="urlInput" placeholder="Paste YouTube, TikTok, Facebook link...">
+        <button onclick="processVideo()">Download Watermarked Video</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        async function processVideo() {
+            const url = document.getElementById('urlInput').value.trim();
+            const status = document.getElementById('status');
+            if (!url) { status.innerText = "Please paste a valid link!"; return; }
+
+            status.innerText = "Processing & Watermarking... Please wait.";
+
+            try {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || "Failed to process download.");
+                }
+
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = "snapstamp-video.mp4";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+
+                status.innerText = "Download complete! Server storage cleared.";
+            } catch (err) {
+                status.innerText = err.message;
+            }
+        }
+    </script>
+</body>
+</html>
