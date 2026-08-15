@@ -7,11 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Custom Linear Progress Bar Animation */
         .progress-bar-container {
             width: 100%;
             height: 8px;
-            background-color: #374151; /* Tailwind gray-700 */
+            background-color: #374151;
             border-radius: 9999px;
             overflow: hidden;
             position: relative;
@@ -19,7 +18,7 @@
         .progress-bar {
             width: 50%;
             height: 100%;
-            background-color: #3b82f6; /* Tailwind blue-500 */
+            background-color: #3b82f6;
             border-radius: 9999px;
             position: absolute;
             animation: loading 1.5s infinite ease-in-out;
@@ -33,7 +32,6 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
 
-    <!-- Made the container wider: max-w-3xl instead of max-w-xl -->
     <div class="max-w-3xl w-full bg-gray-800 p-8 md:p-10 rounded-2xl shadow-2xl border border-gray-700 text-center">
         <h1 class="text-4xl font-bold mb-2 text-blue-500"><i class="fa-solid fa-video"></i> SnapStamp</h1>
         <p class="text-gray-400 mb-8">Download and watermark videos, Powered by HGT</p>
@@ -49,7 +47,6 @@
             <i class="fa-solid fa-wand-magic-sparkles"></i>
         </button>
 
-        <!-- New Linear Progress Bar Loading State -->
         <div id="loadingState" class="hidden mt-8 flex-col items-center">
             <div class="progress-bar-container mb-4">
                 <div class="progress-bar"></div>
@@ -58,24 +55,20 @@
             <p class="text-sm text-gray-500 mt-2">Please wait, processing time depends on video length and platform.</p>
         </div>
 
-        <!-- Error State -->
         <div id="errorState" class="hidden mt-6 p-4 bg-red-900/50 border border-red-500 text-red-200 rounded-lg">
             <p id="errorMsg"></p>
         </div>
 
-        <!-- New Result State with Video Player and Download Button -->
         <div id="resultState" class="hidden mt-8 p-6 bg-gray-700 rounded-xl border border-gray-600 shadow-inner">
             <h3 class="text-2xl font-bold mb-2 text-green-400">Processing Complete!</h3>
             <p class="text-gray-300 mb-6">Your HGT watermark has been applied successfully.</p>
             
-            <!-- Video Player Container -->
             <div class="w-full max-w-lg mx-auto bg-black rounded-lg overflow-hidden border-2 border-gray-800 shadow-lg mb-6">
                 <video id="videoPlayer" class="w-full h-auto max-h-96" controls controlsList="nodownload">
                     Your browser does not support the video tag.
                 </video>
             </div>
 
-            <!-- Download Button -->
             <a id="downloadBtn" href="#" class="w-full max-w-lg mx-auto flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg transition-all shadow-lg text-lg">
                 <i class="fa-solid fa-download mr-2"></i> Download Video
             </a>
@@ -116,19 +109,23 @@
                     body: JSON.stringify({ url: urlInput })
                 });
 
-                const data = await response.json();
+                // Safely check if response is text/HTML (like a 502 gateway error) instead of crashing on .json()
+                const rawText = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(rawText);
+                } catch (e) {
+                    throw new Error("Server error or timeout (502 Bad Gateway). The video file may be too large for the free server RAM.");
+                }
+
                 clearInterval(statusInterval);
 
                 if (!response.ok) throw new Error(data.error || "Failed to process video");
 
-                // Update Video Player and Download Button
                 const videoPlayer = document.getElementById('videoPlayer');
                 const downloadBtn = document.getElementById('downloadBtn');
                 
-                // Set the video player source to the stream endpoint
                 videoPlayer.src = `/api/stream/${data.filename}`;
-                
-                // Set the download button link to the file endpoint
                 downloadBtn.href = `/api/file/${data.filename}`;
                 
                 loadingState.classList.add('hidden');
