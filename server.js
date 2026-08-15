@@ -32,8 +32,8 @@ app.post('/api/download', (req, res) => {
     const rawVideoPath = path.join(tempDir, `${id}_raw.mp4`);
     const finalVideoPath = path.join(tempDir, `${id}_watermarked.mp4`);
 
-    // Using best compatibility flags to ensure the raw video is always strictly an MP4
-    const dlCommand = `yt-dlp --no-check-certificate --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "${rawVideoPath}" "${videoUrl}"`;
+    // Added JS runtime and mobile client spoofing to bypass YouTube bot checks
+    const dlCommand = `yt-dlp --no-check-certificate --js-runtimes nodejs --extractor-args "youtube:player_client=android,ios" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "${rawVideoPath}" "${videoUrl}"`;
     
     console.log(`Executing download for: ${videoUrl}`);
 
@@ -44,13 +44,11 @@ app.post('/api/download', (req, res) => {
             return res.status(500).json({ error: `Failed to download: ${stderr || dlErr.message}` });
         }
 
-        // Fixed ffmpeg filter syntax (drawtext=) and added -y flag to avoid background overwrite prompts
         const fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
         const watermarkText = "Powered by HGT";
         const wmCommand = `ffmpeg -y -i "${rawVideoPath}" -vf "drawtext=fontfile='${fontPath}':text='${watermarkText}':x=15:y=H-th-15:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.6" -codec:a copy "${finalVideoPath}"`;
         
         exec(wmCommand, (wmErr, wmStdout, wmStderr) => {
-            // Remove the raw downloaded video
             if (fs.existsSync(rawVideoPath)) fs.unlinkSync(rawVideoPath);
 
             if (wmErr) {
